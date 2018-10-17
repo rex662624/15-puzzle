@@ -8,7 +8,7 @@
 #define N 4
 
 typedef struct board{
-	int b[16], board_num, misplaced_tiles;
+	int b[16], misplaced_tiles;
 	struct board * parent;
 } BOARD;	
 
@@ -19,34 +19,27 @@ typedef struct node{
 } NODE;
 
 BOARD goal_state, best_possible_state;
-int puzzle[16], board_count=1, time_taken=1, space_taken=1, final_f_n;
+int puzzle[16];
 NODE * final;
-// creating open and close lists
 NODE *open_list, *close_list;
-void print(int *arr, int board_num, int misplaced_tiles){
+NODE *StepList;
+
+void PrintBoard(int *arr, int misplaced_tiles){
 	int i;
-	printf("Board number: %d, Misplaced tiles: %d", board_num, misplaced_tiles);
+	//printf("Misplaced tiles: %d", misplaced_tiles);
+	printf("-------------------------\n");
 	for(i=0; i<16; i++){ 
-		if(i%4==0) printf("\n\n");
-		if(arr[i]==0) printf(" \t");
-		else printf("%d\t", arr[i]);
+		if(i%4==0) printf("\n");
+		if(arr[i]==0)	printf("   ");
+		else	printf("%2d ", arr[i]);
 	}
 	printf("\n");
 }
 
-BOARD shuffle_state(BOARD prev_board){//隨機產生start state
-	int n=16, i, j, temp;	
-	srand(time(NULL));
-	for(i=15; i>0; i--){
-		j=rand()%(i+1);
-		temp=prev_board.b[i];
-		prev_board.b[i] = prev_board.b[j];
-		prev_board.b[j] = temp;
-	}
-	return prev_board;
-}
 
-BOARD generating_goal_state(BOARD goal_state){//設定goal state 的盤面
+
+BOARD GenerateGoal(){//設定goal state 的盤面
+	BOARD goal_state;
 	int i;
 	for(i=0; i<16; i++){
 		goal_state.b[i] = i+1;
@@ -55,50 +48,77 @@ BOARD generating_goal_state(BOARD goal_state){//設定goal state 的盤面
 	return goal_state;
 }
 
-void print_all(NODE *list){
-	printf("start printing\n");
-	while(list!=NULL){
-		print(list->B.b, list->B.board_num, list->B.misplaced_tiles);
-		list = list->next;
+BOARD GenerateStart(){//隨機產生start state
+	BOARD start = GenerateGoal();
+	int i, j, temp;
+	
+	srand(time(NULL));
+	for(i=15; i>0; i--){
+		j=rand()%(i+1);
+		temp=start.b[i];
+		start.b[i] = start.b[j];
+		start.b[j] = temp;
 	}
-	printf("printing done\n");
-}
+	return start;
+}	
 
-int find_zero(int *A){
+BOARD FewStepStart(int choice){//產生預先設定的start state（步數較少）
+	int data1[16]={5,2,12,8,1,3,9,7,4,14,15,11,13,6,10,0};
+	int data2[16]={2,8,13,14,3,0,15,4,6,5,7,11,9,1,10,12};
+
+	BOARD start;
+	int i, j, temp;
+	if(choice==1)
+		for(i=15; i>=0; i--){
+			start.b[i]=data1[i];
+		}
+	else
+		for(i=15; i>=0; i--){
+			start.b[i]=data2[i];
+		}
+
+	return start;
+}	
+
+int ZeroPos(int A[]){// find zero position
 	int i;
 	for(i=0;i<16;i++) if(A[i]==0) return i;
 }
 
-int check_if_boards_match(int *a, int *b){
-	int count = 0, i, j;
+
+
+int CompareBoard(int a[], int b[]){//check if a and b is the same
+	int count =0, i, j;
 	for(i=0;i<16;i++) if(a[i]==b[i]) count++;
 	if(count == 16) return 1;
 	else return 0;
 }
 
-int getInvCount(int arr[])
+//======================check if a Board is solvable
+
+int getInvCount(int board[])
 {
     int inv_count = 0;
     for (int i = 0; i < N * N - 1; i++){
         for (int j = i + 1; j < N * N; j++){
             // count pairs(i, j) such that i appears
             // before j, but i > j.
-            if (arr[j] && arr[i] && arr[i] > arr[j]) inv_count++;
+            if (board[j] && board[i] && board[i] > board[j]) inv_count++;
         }
     }
     return inv_count;
 }
-int findXPosition(int *puzzle)
+int findXPosition(int board[])
 {
     // start from bottom-right corner of matrix
     for (int i = N - 1; i >= 0; i--)
         for (int j = N - 1; j >= 0; j--)
-            if (puzzle[i*4+j] == 0) return N - i;
+            if (board[i*4+j] == 0) return N - i;
 }
-bool isSolvable(int *puzzle)
+bool isSolvable(int board[])
 {
     // Count inversions in given puzzle
-    int invCount = getInvCount((int*)puzzle);
+    int invCount = getInvCount((int*)board);
 
     // If grid is odd, return true if inversion
     // count is even.
@@ -106,218 +126,188 @@ bool isSolvable(int *puzzle)
 
     else     // grid is even
     {
-        int pos = findXPosition(puzzle);
+        int pos = findXPosition(board);
         if (pos & 1) return !(invCount & 1);
         else return invCount & 1;
     }
 }
-
-void copy_into_puzzle(BOARD start_state){
-	int i, j;
-	for(i=0; i<4; i++){
-		for(j=0; j<4; j++) puzzle[i*4+j] = start_state.b[i*4+j];
-	}
-}
-
-int check_goal_state(int check_board[]){
+//==============================================
+int IsGoal(int board[]){
 	int i;
 	for(i=0; i<15; i++){
-		if(i+1 != check_board[i]) return 0;
+		if(i+1 != board[i]) return 0;
 	}
 	return 1;
 }
 
-int find_misplaced_tiles(int *A){//計算有幾個人放錯位置
-	int i, count_misplaced=0;
+int find_misplaced_tiles(int A[]){//計算有幾個人放錯位置
+	int i, WrongPlace=0;
+	if(A[15]!=0) WrongPlace++;
+
 	for(i=0; i<15; i++){
 		if(A[i] != (i+1)){
-			count_misplaced++;
+			WrongPlace++;
 		}
 	}
-	if(A[15]!=0) count_misplaced++;
-	return count_misplaced;
+	return WrongPlace++;
 }
 
-void add_solution_boards_to_open_list(BOARD* now){
+void Add_To_Open_List(BOARD* now){//把目前的加入open list
 	int *A =now->b;
-	NODE *op_list = open_list, *clo_list = close_list;
+	NODE *op_list_l = open_list, *clo_list_l = close_list;
 	int i, flag=0;
-	while(op_list!=NULL){//看看A是不是已經在openlist中
-		if(check_if_boards_match(op_list->B.b,A)){
+	while(op_list_l!=NULL){//看看是不是已經在openlist中
+		if(CompareBoard(op_list_l->B.b,A)){
 			flag = 1;
 			break;
 		}
-		op_list = op_list->next;
+		op_list_l = op_list_l->next;
 	}
-	while(clo_list!=NULL && flag==0){//看看A是不是已經在closelist中
-		if(check_if_boards_match(clo_list->B.b,A)){
+	while(clo_list_l!=NULL && flag==0){//看看是不是已經在closelist中
+		if(CompareBoard(clo_list_l->B.b,A)){
 			flag = 1;
 			break;
 		}
-		clo_list = clo_list->next;
+		clo_list_l = clo_list_l->next;
 	}
 
-	//都沒有重複
-	if(flag==0){//op_list==NULL && clo_list==NULL){
-		//flag = 0;
-		// no duplicate found. Create new node to insert in open_list
-		NODE *new_baccha = (NODE*)malloc(sizeof(NODE));
-		new_baccha->next = NULL;
-		// updating misplaced_tiles
-		int misplaced = find_misplaced_tiles(A);
-		new_baccha->B.misplaced_tiles = misplaced;
-		new_baccha->B.board_num = board_count++;
-		
+	//如果都不在openlist和close list才可以加入openlist
+	if(flag==0){
+
+		NODE *NewBoard = malloc(sizeof(NODE));
+		NewBoard->next = NULL;
+		NewBoard->B.misplaced_tiles = find_misplaced_tiles(A);
+		NewBoard->B.parent = &final->B;//parent=上一個走的人
+
 		// updating board
-		for(i=0;i<16;i++) new_baccha->B.b[i] = A[i];
-		new_baccha->B.parent = &final->B;
-		// insert node in the open_list
-		if(open_list==NULL) open_list = new_baccha;
+		for(i=0;i<16;i++)NewBoard->B.b[i] = A[i];
+		// insert to the open_list
+		if(open_list==NULL) open_list = NewBoard;
 		else{
 			NODE *current = open_list;
 			//openlist是根據 misplaced_tiles 排下來
-			while (current->next!=NULL && current->B.misplaced_tiles < new_baccha->B.misplaced_tiles){
+			while (current->next!=NULL && current->B.misplaced_tiles < NewBoard->B.misplaced_tiles){
 	            current = current->next;
 	        }
-	        new_baccha->next = current->next;
-	        current->next = new_baccha;
+	        NewBoard->next = current->next;
+	        current->next = NewBoard;
     	}
-		//NODE *t = open_list;
-		space_taken+=1;
 	}
 }
 
-
-int count_zeros(int *A){
-	int i, count=0;
-	for(i=0; i<16; i++) if(A[i]==0) count++;
-	if(count > 1) return 1;
-	else return 0;
-}
-
-void check_possible_solution_boards(BOARD* now){
+void NextPossibleState(BOARD* now){
 	
 	int *A = now->b;
-	int position_of_zero = find_zero(A);//找到0的位置
-	int row_no = position_of_zero/4;
-	int col_no = position_of_zero%4;
-	int misplaced_tiles = 0;
+	int ZeroPosition = ZeroPos(A);//找到0的位置
+	int Zero_row = ZeroPosition/4;
+	int Zero_col = ZeroPosition%4;
 
-	if(row_no-1>=0){//最上面那排
+	if(Zero_row-1>=0){//最上面那排
 		//把 0 移到上面
-		A[position_of_zero] = A[(row_no-1)*4+col_no];
-		A[(row_no-1)*4+col_no] = 0;
+		A[ZeroPosition] = A[ZeroPosition-4];
+		A[ZeroPosition-4] = 0;
 		//加入openlist
-		add_solution_boards_to_open_list(now);
+		Add_To_Open_List(now);
 		//恢復移動前的盤面，因為下面還有動作
-		A[(row_no-1)*4+col_no] = A[position_of_zero] ;
-		A[position_of_zero] = 0;
+		A[ZeroPosition-4] = A[ZeroPosition] ;
+		A[ZeroPosition] = 0;
 	}
-	if(col_no-1>=0){//左邊
-		A[position_of_zero] = A[(row_no)*4+(col_no-1)];
-		A[(row_no)*4+(col_no-1)] = 0;
-		add_solution_boards_to_open_list(now);
-		A[(row_no)*4+(col_no-1)] = A[position_of_zero] ;
-		A[position_of_zero] = 0;
+	if(Zero_col-1>=0){//左邊
+		A[ZeroPosition] = A[ZeroPosition-1];
+		A[ZeroPosition-1] = 0;
+		Add_To_Open_List(now);
+		A[ZeroPosition-1] = A[ZeroPosition] ;
+		A[ZeroPosition] = 0;
 	}
-	if(row_no+1<=3){//最下面
-		A[position_of_zero] = A[(row_no+1)*4+col_no];
-		A[(row_no+1)*4+col_no] = 0;
-		add_solution_boards_to_open_list(now);
-		A[(row_no+1)*4+col_no] = A[position_of_zero] ;
-		A[position_of_zero] = 0;
+	if(Zero_row+1<=3){//最下面
+		A[ZeroPosition] = A[ZeroPosition+4];
+		A[ZeroPosition+4] = 0;
+		Add_To_Open_List(now);
+		A[ZeroPosition+4] = A[ZeroPosition] ;
+		A[ZeroPosition] = 0;
 	}
-	if(col_no+1<=3){//最右邊
-		A[position_of_zero] = A[(row_no)*4+(col_no+1)];
-		A[(row_no)*4+(col_no+1)] = 0;
-		add_solution_boards_to_open_list(now);
-		A[(row_no)*4+(col_no+1)] = A[position_of_zero] ;
-		A[position_of_zero] = 0;
+	if(Zero_col+1<=3){//最右邊
+		A[ZeroPosition] = A[ZeroPosition+1];
+		A[ZeroPosition+1] = 0;
+		Add_To_Open_List(now);
+		A[ZeroPosition+1] = A[ZeroPosition] ;
+		A[ZeroPosition] = 0;
 	}
-	//repair++;
-	//NODE *open_repair = open_list;
-	//if(repair) repair_mistake(open_repair);
-	time_taken+=4;
 }
 
 
-int find_best_possible_solution(){
-	// check least misplaced tiles result
-	int  i,temp_val = INT_MAX;
-	NODE *check = open_list, *temp=open_list, *prev=open_list, *curr=open_list, *list=open_list;
-	open_list = open_list->next;
-	//updating best possible solution
-	//for(i=0; i<16; i++){
-		best_possible_state = curr->B;
-	//}
-	// updating open_list by removing best_posssible_solution_board
-	// check if best board = solution
-	print(best_possible_state.b, curr->B.board_num, curr->B.misplaced_tiles);
-	int goal=0;
-	goal = check_goal_state(best_possible_state.b);
-	// if yes - add to close_list and terminate
-	if(goal){
+int ChooseNext(){// 找出最好一步的 heuristic方法：選出盤面錯最少的
+	
+	int  i;
+	NODE *temp = open_list, *curr=open_list;
+
+	open_list = open_list->next;//因為開頭要移出去了
+	//最好的state在openlist開頭
+	best_possible_state = curr->B;
+	PrintBoard(best_possible_state.b, curr->B.misplaced_tiles);//印出ㄇ
+
+	
+	int isgoal=0;
+	isgoal = IsGoal(best_possible_state.b);
+	if(isgoal){//如果下一步是goal
+		//插進close list
 		if(close_list==NULL) close_list = curr;
 		else{
 			// inserting at the head
 			curr->next = close_list;
 			close_list = curr;
 		}
+		final = curr;//紀錄這步走了什麼，後面方便回朔
 		return 1;
 	}
-	// else add to close list and look for new best possible solutions
-	else{ 
+	
+	else{ // 如果下一步不是goal 加入 close list
 		if(close_list==NULL) close_list = curr;
 		else{
 			// inserting at the head
 			curr->next = close_list;
 			close_list = curr;
-			final = curr;
+			final = curr;//紀錄這步走了什麼，後面方便回朔
 		}
 		NODE *temp = close_list;
 		return 0;
 	}
 }
-int step=0;
-void solve_board(BOARD* start_state){
-	// check possible solution boards
-	// if no duplicate found
-	// find out their misplaced tiles
-	// add to open_list
-	check_possible_solution_boards(start_state);
-	NODE *op1 = open_list;
-	// find best possible solution
-	int goal=0;
-	goal = find_best_possible_solution();
-	// check if goal==1
-	// if yes - return answer
-	if(goal) return;
-	// else start checking possible solution boards in open_list
-	else{
-		NODE *open_list_head;
-		while(open_list!=NULL){
-			open_list_head = open_list;
+
+void solve_board(BOARD* start_state){//課本p35 a* algorithm
+
+	//先Enqueue Start開始可以一步到的盤面
+	NextPossibleState(start_state);
+	int isgoal=0;
+	isgoal = ChooseNext();
+
+	//如果走一步就到終點
+	if(isgoal) 
+		return;
+	else{//否則開始走A*流程
+		while(open_list!=NULL){//如果還有 state 可以走
 			//找出所有可以到的下一個盤面
-			check_possible_solution_boards(&best_possible_state);
-			goal = 0;
-			goal = find_best_possible_solution();
-			step++;
-			if(goal) return;
+			NextPossibleState(&best_possible_state);
+			isgoal = 0;
+			isgoal = ChooseNext();
+			if(isgoal) return;
 		}
 	}
 }
 
 
 
-int main(){
+int main(int argc, char *argv[]){
 	srand((unsigned int)time(NULL));
 	BOARD start_state;
 	int i;
 
 	//產生初始盤面和終局盤面
-	goal_state = generating_goal_state(goal_state);
-	start_state = shuffle_state(goal_state);
-	start_state.board_num = 1;
+	goal_state = GenerateGoal();
+	if(argc<1)
+		start_state = GenerateStart();
+	else
+		start_state = FewStepStart(atoi(argv[1]));
 	int m = find_misplaced_tiles(start_state.b);
 	start_state.misplaced_tiles = m;
 	start_state.parent = NULL;
@@ -333,43 +323,104 @@ int main(){
 	// adding start_state to close_list(已經走過了)
 	close_list->B = start_state;
 	printf("Starting board:\n");
-	print(start_state.b, start_state.board_num, start_state.misplaced_tiles);
+	PrintBoard(start_state.b, start_state.misplaced_tiles);
 	
 	//看state是否可走
-	copy_into_puzzle(start_state);
-	if(isSolvable(puzzle)) printf("Solvable\n");
+	int solvable = isSolvable(start_state.b);
+	if(solvable) printf("Solvable\n");
 	else printf("Unsolvable board state\n");
 
-	if(isSolvable(start_state.b)){
-		if(check_goal_state(start_state.b)){//如果一開始就是終盤
-			printf("SOLUTION FOUND\n");
-			print(start_state.b, start_state.board_num, start_state.misplaced_tiles);
+	//開始解
+	if(solvable){
+		if(IsGoal(start_state.b)){//如果一開始就是終盤
+			printf("\nstart state:\n");
+			PrintBoard(start_state.b, start_state.misplaced_tiles);
 		}
 		else{
 			solve_board(&start_state);
-			printf("\nSolution found for start state:\n");
-			print(start_state.b, 1, find_misplaced_tiles(start_state.b));
-			printf("\nTotal time (number of nodes generated) = %d\nTotal space (number of nodes present in memory) = %d\n", time_taken, space_taken);
+			printf("\nstart state:\n");
+			PrintBoard(start_state.b, find_misplaced_tiles(start_state.b));
 		}
 	}
-	
-	printf("\nstep:%d\n:",step);
 	
 	//if(best_possible_state.parent==NULL)printf("sadasd\n");
 	//printf("%d\n" ,best_possible_state.parent->b[8]);
+	int Step=0;
 	FILE * pFile;
   	pFile =	fopen ( "out.txt", "w" );
 	
-	printf("--------------------------\n");
 	BOARD* tmp = &final->B;
-	while(tmp->parent!=NULL){
+	while(tmp!=NULL){
+		if(StepList==NULL) 
+		{
+			NODE * new = malloc(sizeof(NODE));
+			new->B=*tmp;
+			new->next=NULL;
+			StepList = new;
+		}
+		else{
+			NODE * new = malloc(sizeof(NODE));
+			new->B=*tmp;
+			new->next=StepList;
+			StepList=new;
+		}
+		/*
+		fprintf(pFile,"\n--------------------------\n");
 		for(i=0; i<16; i++){ 
-			if(i%4==0) fprintf(pFile,"\n\n");
-			if(tmp->parent->b[i]==0) fprintf(pFile," \t");
-			else fprintf(pFile,"%d\t", tmp->parent->b[i]);
+			if(i%4==0) fprintf(pFile,"\n");
+			if(tmp->b[i]==0) fprintf(pFile,"  \t");
+			else fprintf(pFile,"%2d\t", tmp->b[i]);
 		}
 		//print(tmp->parent->b, 1, find_misplaced_tiles(tmp->parent->b));
+		*/
 		tmp=tmp->parent;
+		Step++;
 	}
+	//加入start state
+	if(StepList==NULL) {
+			NODE * new = malloc(sizeof(NODE));
+			new->B=start_state;
+			new->next=NULL;
+			StepList = new;
+	}
+	else {
+			NODE * new = malloc(sizeof(NODE));
+			new->B=start_state;
+			new->next=StepList;
+			StepList=new;
+	}
+
+	printf("Total Step:%d\n",Step);	
+
+
+	char n ;
+	int count=0;
+	int printOneTime=3;
+	if(argc>1)printOneTime=1;
+	while(StepList)
+	{
+		printf("Step%d of Total %d-------------------------\n",count,Step);
+		for(i=0; i<16; i++){ 
+			if(i%4==0) printf("\n");
+			if(StepList->B.b[i]==0)	printf("   ");
+			else	printf("%2d ", StepList->B.b[i]);
+		}
+		printf("\n");
+		StepList=StepList->next;
+		
+		count++;
+		if(count%printOneTime==0){scanf("%c",&n);}
+	}
+	
+
+	//fprintf(pFile,"\n--------------------------\n");
+	//印出start state
+	/*
+	for(i=0; i<16; i++){ 
+			if(i%4==0) fprintf(pFile,"\n");
+			if(start_state.b[i]==0) fprintf(pFile,"  \t");
+			else fprintf(pFile,"%2d\t", start_state.b[i]);
+		}
+	*/
 	return 0;
 }
