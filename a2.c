@@ -9,15 +9,18 @@
 
 typedef struct board{
 	int b[16], board_num, misplaced_tiles;
+	struct board * parent;
 } BOARD;	
 
 typedef struct node{
 	BOARD B;
 	struct node *next;
+
 } NODE;
 
-BOARD goal_state;
-int puzzle[16], best_possible_solution[16], board_count=1, time_taken=1, space_taken=1, final_f_n;
+BOARD goal_state, best_possible_state;
+int puzzle[16], board_count=1, time_taken=1, space_taken=1, final_f_n;
+
 // creating open and close lists
 NODE *open_list, *close_list;
 void print(int *arr, int board_num, int misplaced_tiles){
@@ -135,7 +138,8 @@ int find_misplaced_tiles(int *A){//計算有幾個人放錯位置
 	return count_misplaced;
 }
 
-void add_solution_boards_to_open_list(int *A){
+void add_solution_boards_to_open_list(BOARD* now){
+	int *A =now->b;
 	NODE *op_list = open_list, *clo_list = close_list;
 	int i, flag=0;
 	while(op_list!=NULL){//看看A是不是已經在openlist中
@@ -166,6 +170,7 @@ void add_solution_boards_to_open_list(int *A){
 		
 		// updating board
 		for(i=0;i<16;i++) new_baccha->B.b[i] = A[i];
+		new_baccha->B.parent = now;
 		// insert node in the open_list
 		if(open_list==NULL) open_list = new_baccha;
 		else{
@@ -189,33 +194,10 @@ int count_zeros(int *A){
 	if(count > 1) return 1;
 	else return 0;
 }
-/*
-int repair=0;
 
-void repair_mistake(NODE *op1){
-	NODE *op2 = open_list, *fix = open_list;
-	while(op1!=NULL){
-		int check = count_zeros(op1->B.b);
-		if(check){//如果有盤面的0超過一個
-			printf("--------------------------------sadasdsad\n");
-			printf("--------------------------------sadasdsad\n");
-			printf("--------------------------------sadasdsad\n");
-			printf("--------------------------------sadasdsad\n");
-			printf("--------------------------------sadasdsad\n");
-			printf("--------------------------------sadasdsad\n");
-			printf("--------------------------------sadasdsad\n");
-			printf("--------------------------------sadasdsad\n");
-			printf("--------------------------------sadasdsad\n");
-			if(op1==fix) open_list = open_list->next;
-			op2->next = op1->next;
-			break;
-		}
-		op2 = op1;
-		op1 = op1->next;
-	}
-}
-*/
-void check_possible_solution_boards(int *A){
+void check_possible_solution_boards(BOARD* now){
+	
+	int *A = now->b;
 	int position_of_zero = find_zero(A);//找到0的位置
 	int row_no = position_of_zero/4;
 	int col_no = position_of_zero%4;
@@ -226,7 +208,7 @@ void check_possible_solution_boards(int *A){
 		A[position_of_zero] = A[(row_no-1)*4+col_no];
 		A[(row_no-1)*4+col_no] = 0;
 		//加入openlist
-		add_solution_boards_to_open_list(A);
+		add_solution_boards_to_open_list(now);
 		//恢復移動前的盤面，因為下面還有動作
 		A[(row_no-1)*4+col_no] = A[position_of_zero] ;
 		A[position_of_zero] = 0;
@@ -234,21 +216,21 @@ void check_possible_solution_boards(int *A){
 	if(col_no-1>=0){//左邊
 		A[position_of_zero] = A[(row_no)*4+(col_no-1)];
 		A[(row_no)*4+(col_no-1)] = 0;
-		add_solution_boards_to_open_list(A);
+		add_solution_boards_to_open_list(now);
 		A[(row_no)*4+(col_no-1)] = A[position_of_zero] ;
 		A[position_of_zero] = 0;
 	}
 	if(row_no+1<=3){//最下面
 		A[position_of_zero] = A[(row_no+1)*4+col_no];
 		A[(row_no+1)*4+col_no] = 0;
-		add_solution_boards_to_open_list(A);
+		add_solution_boards_to_open_list(now);
 		A[(row_no+1)*4+col_no] = A[position_of_zero] ;
 		A[position_of_zero] = 0;
 	}
 	if(col_no+1<=3){//最右邊
 		A[position_of_zero] = A[(row_no)*4+(col_no+1)];
 		A[(row_no)*4+(col_no+1)] = 0;
-		add_solution_boards_to_open_list(A);
+		add_solution_boards_to_open_list(now);
 		A[(row_no)*4+(col_no+1)] = A[position_of_zero] ;
 		A[position_of_zero] = 0;
 	}
@@ -264,14 +246,14 @@ int find_best_possible_solution(){
 	NODE *check = open_list, *temp=open_list, *prev=open_list, *curr=open_list, *list=open_list;
 	open_list = open_list->next;
 	//updating best possible solution
-	for(i=0; i<16; i++){
-		best_possible_solution[i] = curr->B.b[i];
-	}
+	//for(i=0; i<16; i++){
+		best_possible_state = curr->B;
+	//}
 	// updating open_list by removing best_posssible_solution_board
 	// check if best board = solution
-	print(best_possible_solution, curr->B.board_num, curr->B.misplaced_tiles);
+	print(best_possible_state.b, curr->B.board_num, curr->B.misplaced_tiles);
 	int goal=0;
-	goal = check_goal_state(best_possible_solution);
+	goal = check_goal_state(best_possible_state.b);
 	// if yes - add to close_list and terminate
 	if(goal){
 		if(close_list==NULL) close_list = curr;
@@ -295,12 +277,12 @@ int find_best_possible_solution(){
 	}
 }
 int step=0;
-void solve_board(BOARD start_state){
+void solve_board(BOARD* start_state){
 	// check possible solution boards
 	// if no duplicate found
 	// find out their misplaced tiles
 	// add to open_list
-	check_possible_solution_boards(start_state.b);
+	check_possible_solution_boards(start_state);
 	NODE *op1 = open_list;
 	// find best possible solution
 	int goal=0;
@@ -314,7 +296,7 @@ void solve_board(BOARD start_state){
 		while(open_list!=NULL){
 			open_list_head = open_list;
 			//找出所有可以到的下一個盤面
-			check_possible_solution_boards(best_possible_solution);
+			check_possible_solution_boards(&best_possible_state);
 			goal = 0;
 			goal = find_best_possible_solution();
 			step++;
@@ -322,6 +304,8 @@ void solve_board(BOARD start_state){
 		}
 	}
 }
+
+
 
 int main(){
 	srand((unsigned int)time(NULL));
@@ -334,6 +318,8 @@ int main(){
 	start_state.board_num = 1;
 	int m = find_misplaced_tiles(start_state.b);
 	start_state.misplaced_tiles = m;
+	start_state.parent = NULL;
+
 	goal_state.misplaced_tiles = 0;
 
 	//初始化盤面的openlist和closelist
@@ -358,13 +344,20 @@ int main(){
 			print(start_state.b, start_state.board_num, start_state.misplaced_tiles);
 		}
 		else{
-			solve_board(start_state);
+			solve_board(&start_state);
 			printf("\nSolution found for start state:\n");
 			print(start_state.b, 1, find_misplaced_tiles(start_state.b));
 			printf("\nTotal time (number of nodes generated) = %d\nTotal space (number of nodes present in memory) = %d\n", time_taken, space_taken);
 		}
 	}
+	
 	printf("\nstep:%d\n:",step);
+	
+	//if(best_possible_state.parent==NULL)printf("sadasd\n");
+	//printf("%d\n" ,best_possible_state.parent->b[8]);
+	//BOARD tmp = best_possible_state;
+	//while(best_possible_state.parent!=NULL)
+	//	print(tmp.parent->b, 1, find_misplaced_tiles( best_possible_state.parent->b));
 
 	return 0;
 }
