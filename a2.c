@@ -20,7 +20,7 @@ typedef struct node{
 
 BOARD goal_state, best_possible_state;
 int puzzle[16], board_count=1, time_taken=1, space_taken=1, final_f_n;
-
+NODE * final;
 // creating open and close lists
 NODE *open_list, *close_list;
 void print(int *arr, int board_num, int misplaced_tiles){
@@ -170,7 +170,7 @@ void add_solution_boards_to_open_list(BOARD* now){
 		
 		// updating board
 		for(i=0;i<16;i++) new_baccha->B.b[i] = A[i];
-		new_baccha->B.parent = now;
+		new_baccha->B.parent = &final->B;
 		// insert node in the open_list
 		if(open_list==NULL) open_list = new_baccha;
 		else{
@@ -240,6 +240,7 @@ void check_possible_solution_boards(BOARD* now){
 	time_taken+=4;
 }
 
+
 int find_best_possible_solution(){
 	// check least misplaced tiles result
 	int  i,temp_val = INT_MAX;
@@ -271,6 +272,7 @@ int find_best_possible_solution(){
 			// inserting at the head
 			curr->next = close_list;
 			close_list = curr;
+			final = curr;
 		}
 		NODE *temp = close_list;
 		return 0;
@@ -355,9 +357,19 @@ int main(){
 	
 	//if(best_possible_state.parent==NULL)printf("sadasd\n");
 	//printf("%d\n" ,best_possible_state.parent->b[8]);
-	//BOARD tmp = best_possible_state;
-	//while(best_possible_state.parent!=NULL)
-	//	print(tmp.parent->b, 1, find_misplaced_tiles( best_possible_state.parent->b));
-
+	FILE * pFile;
+  	pFile =	fopen ( "out.txt", "w" );
+	
+	printf("--------------------------\n");
+	BOARD* tmp = &final->B;
+	while(tmp->parent!=NULL){
+		for(i=0; i<16; i++){ 
+			if(i%4==0) fprintf(pFile,"\n\n");
+			if(tmp->parent->b[i]==0) fprintf(pFile," \t");
+			else fprintf(pFile,"%d\t", tmp->parent->b[i]);
+		}
+		//print(tmp->parent->b, 1, find_misplaced_tiles(tmp->parent->b));
+		tmp=tmp->parent;
+	}
 	return 0;
 }
