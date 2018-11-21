@@ -304,7 +304,7 @@ int main(int argc, char *argv[]){
 
 	//產生初始盤面和終局盤面
 	goal_state = GenerateGoal();
-	if(argc<1)
+	if(argc<2)
 		start_state = GenerateStart();
 	else
 		start_state = FewStepStart(atoi(argv[1]));
@@ -396,7 +396,7 @@ int main(int argc, char *argv[]){
 	char n ;
 	int count=0;
 	int printOneTime=3;
-	if(argc>1)printOneTime=1;
+	if(argc>2)printOneTime=1;
 	while(StepList)
 	{
 		printf("Step%d of Total %d-------------------------\n",count,Step);
