@@ -10,6 +10,7 @@
 typedef struct board{
 	int b[16], misplaced_tiles;
 	struct board * parent;
+	int depth;
 } BOARD;	
 
 typedef struct node{
@@ -22,7 +23,8 @@ BOARD goal_state, best_possible_state;
 int puzzle[16];
 NODE * final;
 NODE *open_list, *close_list;
-NODE *StepList;
+//NODE *StepList;
+int limit = 500;//一開始限制65步以內到
 
 void PrintBoard(int *arr, int misplaced_tiles){
 	int i;
@@ -59,6 +61,7 @@ BOARD GenerateStart(){//隨機產生start state
 		start.b[i] = start.b[j];
 		start.b[j] = temp;
 	}
+	start.depth=0;
 	return start;
 }	
 
@@ -76,7 +79,8 @@ BOARD FewStepStart(int choice){//產生預先設定的start state（步數較少
 		for(i=15; i>=0; i--){
 			start.b[i]=data2[i];
 		}
-
+	start.depth=0;
+	
 	return start;
 }	
 
@@ -178,7 +182,7 @@ void Add_To_Open_List(BOARD* now){//把目前的加入open list
 		NewBoard->next = NULL;
 		NewBoard->B.misplaced_tiles = find_misplaced_tiles(A);
 		NewBoard->B.parent = &final->B;//parent=上一個走的人
-
+		NewBoard->B.depth = final->B.depth;//更新depth=上一個人+1
 		// updating board
 		for(i=0;i<16;i++)NewBoard->B.b[i] = A[i];
 		// insert to the open_list
@@ -201,6 +205,8 @@ void NextPossibleState(BOARD* now){
 	int ZeroPosition = ZeroPos(A);//找到0的位置
 	int Zero_row = ZeroPosition/4;
 	int Zero_col = ZeroPosition%4;
+	
+	if(now->depth>limit)return;//超過這輪的limit	
 
 	if(Zero_row-1>=0){//最上面那排
 		//把 0 移到上面
@@ -244,7 +250,7 @@ int ChooseNext(){// 找出最好一步的 heuristic方法：選出盤面錯最�
 	open_list = open_list->next;//因為開頭要移出去了
 	//最好的state在openlist開頭
 	best_possible_state = curr->B;
-	PrintBoard(best_possible_state.b, curr->B.misplaced_tiles);//印出ㄇ
+	PrintBoard(best_possible_state.b, curr->B.misplaced_tiles);//印出
 
 	
 	int isgoal=0;
@@ -298,6 +304,11 @@ void solve_board(BOARD* start_state){//課本p35 a* algorithm
 
 
 int main(int argc, char *argv[]){
+
+while(limit+=5){//每次多搜尋5層
+	NODE *StepList;
+	int goal=0;
+
 	srand((unsigned int)time(NULL));
 	BOARD start_state;
 	int i;
@@ -335,6 +346,7 @@ int main(int argc, char *argv[]){
 		if(IsGoal(start_state.b)){//如果一開始就是終盤
 			printf("\nstart state:\n");
 			PrintBoard(start_state.b, start_state.misplaced_tiles);
+			goal=1;
 		}
 		else{
 			solve_board(&start_state);
@@ -342,12 +354,12 @@ int main(int argc, char *argv[]){
 			PrintBoard(start_state.b, find_misplaced_tiles(start_state.b));
 		}
 	}
-	
+	if(goal==0)continue;
 	//if(best_possible_state.parent==NULL)printf("sadasd\n");
 	//printf("%d\n" ,best_possible_state.parent->b[8]);
 	int Step=0;
-	FILE * pFile;
-  	pFile =	fopen ( "out.txt", "w" );
+	//FILE * pFile;
+  	//pFile =	fopen ( "out.txt", "w" );
 	
 	BOARD* tmp = &final->B;
 	while(tmp!=NULL){
@@ -376,6 +388,8 @@ int main(int argc, char *argv[]){
 		tmp=tmp->parent;
 		Step++;
 	}
+
+
 	//加入start state
 	if(StepList==NULL) {
 			NODE * new = malloc(sizeof(NODE));
@@ -422,5 +436,6 @@ int main(int argc, char *argv[]){
 			else fprintf(pFile,"%2d\t", start_state.b[i]);
 		}
 	*/
+}
 	return 0;
 }
