@@ -71,7 +71,9 @@ BOARD FewStepStart(int choice){//產生預先設定的start state（步數較少
 	//int data1[16]={1,2,3,4,5,6,7,8,9,10,11,13,12,14,15,0};
 	int data1[16]={2,6,4,12,1,5,3,8,0,9,11,7,13,14,15,10};
 	//int data2[16]={2,8,13,14,3,0,15,4,6,5,7,11,9,1,10,12};
-	int data2[16]={1,0,8,4,5,2,3,7,9,10,6,12,13,14,15,11};
+	//int data2[16]={1,0,8,4,5,2,3,7,9,10,6,12,13,14,15,11};
+	//int data2[16]={2,5,9,4,13,6,1,11,0,3,7,12,10,15,8,14};
+	int data2[16]={1,6,4,5,2,0,3,7,9,10,8,11,12,13,14,15};
 	BOARD start;
 	int i, j, temp;
 	if(choice==1)
@@ -327,6 +329,9 @@ void solve_board(BOARD* start_state){//課本p35 a* algorithm
 
 int main(int argc, char *argv[]){
 
+if(argc>3&&atoi(argv[3])==1)limit=10000-5;
+clock_t start_t, end_t, total_t;
+start_t = clock();
 while(limit+=5){//每次多搜尋5層
 	printf("*********************************************depth++\n");
 	//if(limit>30)return 0 ;
@@ -339,10 +344,10 @@ while(limit+=5){//每次多搜尋5層
 
 	//產生初始盤面和終局盤面
 	goal_state = GenerateGoal();
-	if(argc<2)
-		start_state = GenerateStart();
-	else
+	if(argc>3&&atoi(argv[1])!=0)
 		start_state = FewStepStart(atoi(argv[1]));
+	else
+		start_state = GenerateStart();
 	int m = find_misplaced_tiles2(start_state.b);
 	start_state.misplaced_tiles = m;
 	start_state.parent = NULL;
@@ -384,7 +389,8 @@ while(limit+=5){//每次多搜尋5層
 	int Step=0;
 	//FILE * pFile;
   	//pFile =	fopen ( "out.txt", "w" );
-	
+	end_t = clock();
+    printf("\ntotal time %lfsec\n", (end_t - start_t)/(double)(CLOCKS_PER_SEC));
 	BOARD* tmp = &final->B;
 	while(tmp!=NULL){
 		if(StepList==NULL) 
@@ -434,10 +440,11 @@ while(limit+=5){//每次多搜尋5層
 	char n ;
 	int count=0;
 	int printOneTime=1;
-	if(argc>2)printOneTime=3;
+	if(argc>2&&atoi(argv[2])==1)printOneTime=3;
 	while(StepList)
 	{
 		printf("Step%d of Total %d-------------------------\n",count,Step);
+		if(StepList==NULL)return 0;
 		for(i=0; i<16; i++){ 
 			if(i%4==0) printf("\n");
 			if(StepList->B.b[i]==0)	printf("   ");
