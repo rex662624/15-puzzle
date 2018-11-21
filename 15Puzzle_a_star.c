@@ -24,7 +24,8 @@ int puzzle[16];
 NODE * final;
 NODE *open_list, *close_list;
 //NODE *StepList;
-int limit = 500;//一開始限制65步以內到
+int limit =70;//一開始限制65步以內到
+int goal;
 
 void PrintBoard(int *arr, int misplaced_tiles){
 	int i;
@@ -66,9 +67,11 @@ BOARD GenerateStart(){//隨機產生start state
 }	
 
 BOARD FewStepStart(int choice){//產生預先設定的start state（步數較少）
-	int data1[16]={5,2,12,8,1,3,9,7,4,14,15,11,13,6,10,0};
-	int data2[16]={2,8,13,14,3,0,15,4,6,5,7,11,9,1,10,12};
-
+	//int data1[16]={5,2,12,8,1,3,9,7,4,14,15,11,13,6,10,0};
+	//int data1[16]={1,2,3,4,5,6,7,8,9,10,11,13,12,14,15,0};
+	int data1[16]={2,6,4,12,1,5,3,8,0,9,11,7,13,14,15,10};
+	//int data2[16]={2,8,13,14,3,0,15,4,6,5,7,11,9,1,10,12};
+	int data2[16]={1,0,8,4,5,2,3,7,9,10,6,12,13,14,15,11};
 	BOARD start;
 	int i, j, temp;
 	if(choice==1)
@@ -140,8 +143,11 @@ int IsGoal(int board[]){
 	int i;
 	for(i=0; i<15; i++){
 		if(i+1 != board[i]) return 0;
+	
 	}
+	goal=1;
 	return 1;
+
 }
 
 int find_misplaced_tiles(int A[]){//計算有幾個人放錯位置
@@ -156,7 +162,19 @@ int find_misplaced_tiles(int A[]){//計算有幾個人放錯位置
 	return WrongPlace++;
 }
 
-void Add_To_Open_List(BOARD* now){//把目前的加入open list
+int find_misplaced_tiles2(int A[]){//曼哈頓距離
+	int a[4][4]={1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0};
+
+	int i, WrongPlace=0;
+	//if(A[15]!=0) WrongPlace++;
+
+	for(i=0; i<15; i++){
+		WrongPlace+= abs(((A[i]-1)/4)-i/4)+abs(((A[i]-1)%4)-i%4);
+	}
+	return WrongPlace++;
+}
+
+void Add_To_Open_List(BOARD* now,int depth){//把目前的加入open list
 	int *A =now->b;
 	NODE *op_list_l = open_list, *clo_list_l = close_list;
 	int i, flag=0;
@@ -180,9 +198,11 @@ void Add_To_Open_List(BOARD* now){//把目前的加入open list
 
 		NODE *NewBoard = malloc(sizeof(NODE));
 		NewBoard->next = NULL;
-		NewBoard->B.misplaced_tiles = find_misplaced_tiles(A);
+		NewBoard->B.misplaced_tiles = find_misplaced_tiles2(A);
 		NewBoard->B.parent = &final->B;//parent=上一個走的人
-		NewBoard->B.depth = final->B.depth;//更新depth=上一個人+1
+		//if(final!=NULL)
+		NewBoard->B.depth = depth+1;//更新depth=上一個人+1
+		//else NewBoard->B.depth=0;
 		// updating board
 		for(i=0;i<16;i++)NewBoard->B.b[i] = A[i];
 		// insert to the open_list
@@ -196,6 +216,8 @@ void Add_To_Open_List(BOARD* now){//把目前的加入open list
 	        NewBoard->next = current->next;
 	        current->next = NewBoard;
     	}
+
+	//printf("sdsd\n");
 	}
 }
 
@@ -205,7 +227,7 @@ void NextPossibleState(BOARD* now){
 	int ZeroPosition = ZeroPos(A);//找到0的位置
 	int Zero_row = ZeroPosition/4;
 	int Zero_col = ZeroPosition%4;
-	
+	printf("\ndepth%d,limit%d\n",now->depth,limit);
 	if(now->depth>limit)return;//超過這輪的limit	
 
 	if(Zero_row-1>=0){//最上面那排
@@ -213,7 +235,7 @@ void NextPossibleState(BOARD* now){
 		A[ZeroPosition] = A[ZeroPosition-4];
 		A[ZeroPosition-4] = 0;
 		//加入openlist
-		Add_To_Open_List(now);
+		Add_To_Open_List(now,now->depth);
 		//恢復移動前的盤面，因為下面還有動作
 		A[ZeroPosition-4] = A[ZeroPosition] ;
 		A[ZeroPosition] = 0;
@@ -221,21 +243,21 @@ void NextPossibleState(BOARD* now){
 	if(Zero_col-1>=0){//左邊
 		A[ZeroPosition] = A[ZeroPosition-1];
 		A[ZeroPosition-1] = 0;
-		Add_To_Open_List(now);
+		Add_To_Open_List(now,now->depth);
 		A[ZeroPosition-1] = A[ZeroPosition] ;
 		A[ZeroPosition] = 0;
 	}
 	if(Zero_row+1<=3){//最下面
 		A[ZeroPosition] = A[ZeroPosition+4];
 		A[ZeroPosition+4] = 0;
-		Add_To_Open_List(now);
+		Add_To_Open_List(now,now->depth);
 		A[ZeroPosition+4] = A[ZeroPosition] ;
 		A[ZeroPosition] = 0;
 	}
 	if(Zero_col+1<=3){//最右邊
 		A[ZeroPosition] = A[ZeroPosition+1];
 		A[ZeroPosition+1] = 0;
-		Add_To_Open_List(now);
+		Add_To_Open_List(now,now->depth);
 		A[ZeroPosition+1] = A[ZeroPosition] ;
 		A[ZeroPosition] = 0;
 	}
@@ -306,8 +328,10 @@ void solve_board(BOARD* start_state){//課本p35 a* algorithm
 int main(int argc, char *argv[]){
 
 while(limit+=5){//每次多搜尋5層
+	printf("*********************************************depth++\n");
+	//if(limit>30)return 0 ;
 	NODE *StepList;
-	int goal=0;
+	goal=0;
 
 	srand((unsigned int)time(NULL));
 	BOARD start_state;
@@ -319,7 +343,7 @@ while(limit+=5){//每次多搜尋5層
 		start_state = GenerateStart();
 	else
 		start_state = FewStepStart(atoi(argv[1]));
-	int m = find_misplaced_tiles(start_state.b);
+	int m = find_misplaced_tiles2(start_state.b);
 	start_state.misplaced_tiles = m;
 	start_state.parent = NULL;
 
@@ -339,22 +363,22 @@ while(limit+=5){//每次多搜尋5層
 	//看state是否可走
 	int solvable = isSolvable(start_state.b);
 	if(solvable) printf("Solvable\n");
-	else printf("Unsolvable board state\n");
+	else {printf("Unsolvable board state\n");return 0;}
 
 	//開始解
 	if(solvable){
 		if(IsGoal(start_state.b)){//如果一開始就是終盤
 			printf("\nstart state:\n");
 			PrintBoard(start_state.b, start_state.misplaced_tiles);
-			goal=1;
 		}
 		else{
 			solve_board(&start_state);
 			printf("\nstart state:\n");
-			PrintBoard(start_state.b, find_misplaced_tiles(start_state.b));
+			PrintBoard(start_state.b, find_misplaced_tiles2(start_state.b));
 		}
 	}
 	if(goal==0)continue;
+	//else return 0;
 	//if(best_possible_state.parent==NULL)printf("sadasd\n");
 	//printf("%d\n" ,best_possible_state.parent->b[8]);
 	int Step=0;
@@ -409,8 +433,8 @@ while(limit+=5){//每次多搜尋5層
 
 	char n ;
 	int count=0;
-	int printOneTime=3;
-	if(argc>2)printOneTime=1;
+	int printOneTime=1;
+	if(argc>2)printOneTime=3;
 	while(StepList)
 	{
 		printf("Step%d of Total %d-------------------------\n",count,Step);
@@ -436,6 +460,7 @@ while(limit+=5){//每次多搜尋5層
 			else fprintf(pFile,"%2d\t", start_state.b[i]);
 		}
 	*/
+	return 0;
 }
 	return 0;
 }
